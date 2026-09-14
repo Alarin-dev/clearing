@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reflective Thinking</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="topbar">
+  <h1>Reflective Thinking</h1>
+  <div class="topbar-actions">
+    <button id="btn-settings" class="btn-quiet">Settings</button>
+    <button id="btn-sessions" class="btn-quiet">Sessions</button>
+  </div>
+</header>
+
+<main class="layout">
+
+  <section class="stream-panel">
+    <textarea id="thought-input" placeholder="Write without organizing first." rows="4"></textarea>
+    <div class="stream-actions">
+      <span id="stream-status" class="status-text"></span>
+      <button id="btn-submit" class="btn-primary">Add thought</button>
+    </div>
+  </section>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="document">Record</button>
+    <button class="tab-btn" data-tab="composition">Composition</button>
+    <button class="tab-btn" data-tab="kept">Kept phrasing</button>
+  </div>
+
+  <section class="content-area">
+
+    <div class="tab-panel active" id="panel-document">
+      <p class="panel-note">Your exact words, filed but never rewritten. This is the record.</p>
+      <article id="document-view" class="prose"></article>
+    </div>
+
+    <div class="tab-panel" id="panel-composition">
+      <p class="panel-note">A disposable, freely rewritten draft from your raw streams. Not the record.</p>
+      <article id="composition-view" class="prose"></article>
+    </div>
+
+    <div class="tab-panel" id="panel-kept">
+      <p class="panel-note">Phrasing you've explicitly chosen to keep across compositions.</p>
+      <div id="kept-view"></div>
+    </div>
+
+  </section>
+
+  <aside class="side-panel">
+    <div class="side-block">
+      <h2>Last decision</h2>
+      <div id="last-decision" class="quiet-text">No thoughts streamed yet.</div>
+    </div>
+
+    <div class="side-block">
+      <h2>Correct a section</h2>
+      <select id="passage-select"></select>
+      <input id="new-section-input" type="text" placeholder="Move to section">
+      <button id="btn-move" class="btn-quiet">Move</button>
+    </div>
+
+    <div class="side-block">
+      <h2>Controls</h2>
+      <button id="btn-undo" class="btn-quiet">Undo last thought</button>
+      <button id="btn-refresh-composition" class="btn-quiet">Regenerate composition</button>
+    </div>
+  </aside>
+
+</main>
+
+<div id="settings-modal" class="modal hidden">
+  <div class="modal-box">
+    <h2>Settings</h2>
+    <label for="api-key-input">OpenRouter API key</label>
+    <input id="api-key-input" type="password" placeholder="sk-or-v1-...">
+    <p class="hint">Stored only in your browser's localStorage. Never sent anywhere but OpenRouter.</p>
+
+    <label for="model-input">Model</label>
+    <input id="model-input" type="text" placeholder="google/gemma-4-26b-a4b-it:free">
+
+    <div class="modal-actions">
+      <button id="btn-save-settings" class="btn-primary">Save</button>
+      <button id="btn-close-settings" class="btn-quiet">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="sessions-modal" class="modal hidden">
+  <div class="modal-box">
+    <h2>Sessions</h2>
+    <p class="hint">Starting a new session archives the current one. Nothing is deleted.</p>
+    <div id="sessions-list"></div>
+    <div class="modal-actions">
+      <button id="btn-new-session" class="btn-primary">Start new session</button>
+      <button id="btn-close-sessions" class="btn-quiet">Close</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/11.1.1/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.8/purify.min.js"></script>
+<script src="storage.js"></script>
+<script src="ai.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
