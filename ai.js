@@ -126,48 +126,72 @@ function getApiKey() {
 }
 
 function getModel() {
-  return localStorage.getItem("rt_model") || "google/gemma-4-26b-a4b-it:free";
+  return localStorage.getItem("rt_model") || "gemini-2.5-flash";
 }
 
-async function callOpenRouter(systemPrompt, userPrompt, maxTokens) {
+async function callGemini(systemPrompt, userPrompt, maxTokens, jsonMode = false) {
   const apiKey = getApiKey();
+
   if (!apiKey) {
-    throw new Error("No API key set. Add your OpenRouter key in Settings.");
+    throw new Error("No API key set. Add your Google Gemini key in Settings.");
   }
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${apiKey}`,
-      "HTTP-Referer": window.location.origin,
-      "X-Title": "Reflective Thinking",
-    },
-    body: JSON.stringify({
-      model: getModel(),
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      temperature: 0.2,
-      max_tokens: maxTokens,
-      reasoning: { enabled: false },
-    }),
-  });
+  const model = getModel();
+
+  const generationConfig = {
+    temperature: jsonMode ? 0.1 : 0.2,
+    maxOutputTokens: maxTokens
+  };
+
+  if (jsonMode) {
+    generationConfig.responseMimeType = "application/json";
+  }
+
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        systemInstruction: {
+          parts: [{ text: systemPrompt }]
+        },
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: userPrompt }]
+          }
+        ],
+        generationConfig
+      })
+    }
+  );
 
   if (!response.ok) {
     const errText = await response.text();
-    throw new Error(`OpenRouter error (${response.status}): ${errText}`);
+    throw new Error(`Gemini error (${response.status}): ${errText}`);
   }
 
   const data = await response.json();
-  const content = data.choices?.[0]?.message?.content;
+  const candidate = data.candidates?.[0];
+  const finishReason = candidate?.finishReason;
+
+  if (finishReason === "MAX_TOKENS") {
+    throw new Error(
+      "Gemini truncated the response because it reached maxOutputTokens. " +
+      "Increase the output token limit."
+    );
+  }
+
+  const content = candidate?.content?.parts
+    ?.map((part) => part.text || "")
+    .join("");
 
   if (!content) {
-    const finishReason = data.choices?.[0]?.finish_reason;
     throw new Error(
-      `Model returned no content (finish_reason: ${finishReason}). ` +
-      `It may have run out of tokens thinking, or isn't suited for this task.`
+      `Gemini returned no content (finish reason: ${finishReason || "unknown"}).`
     );
   }
 
@@ -201,7 +225,13 @@ Decide which section this belongs to. Return only the JSON described
 in your instructions.
 `.trim();
 
-    const raw = await callOpenRouter(CLASSIFIER_SYSTEM_PROMPT, prompt, 300);
+    const raw = await callGemini(
+    CLASSIFIER_SYSTEM_PROMPT,
+    prompt,
+    512,
+    true
+    );
+
     const jsonText = stripJsonFences(raw);
 
     let data;
@@ -255,7 +285,7 @@ Integrate the new thought(s) into the current composition following
 your instructions. Return the complete updated composition.
 `.trim();
 
-    return await callOpenRouter(COMPOSITION_SYSTEM_PROMPT, prompt, 2500);
+    return await callGemini(COMPOSITION_SYSTEM_PROMPT, prompt, 2500);
   },
 
   /**
@@ -290,6 +320,6 @@ Re-derive the best possible composition directly from the raw
 thoughts, following your instructions.
 `.trim();
 
-    return await callOpenRouter(REGROUND_SYSTEM_PROMPT, prompt, 2500);
+    return await callGemini(REGROUND_SYSTEM_PROMPT, prompt, 2500);
   },
 };
