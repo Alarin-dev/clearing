@@ -45,16 +45,34 @@ stream-of-consciousness notes.
 You will be given the CURRENT COMPOSITION (the existing draft) and one
 or more NEW RAW THOUGHTS that have arrived since it was last updated.
 
-Your job is integration, not regeneration:
-- Do NOT start over or rewrite the whole piece from scratch.
+Your job is integration, not regeneration of prose from scratch -- but
+that does NOT mean staying close to the raw wording or avoiding real
+structure. You should still:
+- use headings to break the composition into scannable sections
+  organized by idea, not chronology
+- use bullet or numbered lists wherever a set of parallel points (like
+  criteria, steps, or layers) would be clearer as a list than as a
+  paragraph
+- write real, condensed prose -- not a lightly-reworded paragraph-by-
+  paragraph mirror of the raw input
+
+Integrating a new thought means: find where it belongs in that
+scannable structure (an existing heading's section, or a new heading
+if it's genuinely a new topic), and fold its core insight in --
+condensed and reworded, not appended as a near-verbatim paragraph.
+
+Specifically:
+- Do NOT start over or rewrite the whole piece's overall shape from
+  scratch each time.
 - Add the new thought's core insight into the block or section it most
-  belongs with. If it doesn't fit anywhere, add a new block for it.
-- Refine language only where needed for accuracy, consistency, or to
+  belongs with, written with the same level of structural polish
+  (headings, lists, condensed phrasing) as the rest of the piece.
+- Refine language wherever needed for accuracy, consistency, or to
   make the new material read as though it were written as part of the
   same continuous piece -- not as a separate appended note.
-- Reorganize existing structure ONLY if the new thought reveals that
-  the current structure genuinely no longer fits (e.g. two sections
-  turn out to be the same idea). Do not reorganize for its own sake.
+- Reorganize existing top-level structure ONLY if the new thought
+  reveals that it genuinely no longer fits (e.g. two sections turn out
+  to be the same idea). Do not reorganize for its own sake.
 - Prioritize coherence, accuracy, and continuity over chronological
   order -- the new thought does not need to appear "at the end."
 
@@ -224,7 +242,7 @@ in your instructions.
     const prompt = `
 CURRENT COMPOSITION:
 ---
-${currentComposition || "(empty -- this is the first thought, so just compose an opening piece from it.)"}
+${currentComposition || "(empty -- this is the first thought. Compose a properly structured opening, with a heading and real prose, not just a raw paragraph.)"}
 ---
 
 NEW RAW THOUGHTS TO INTEGRATE:
