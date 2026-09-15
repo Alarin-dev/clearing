@@ -215,13 +215,6 @@ body {
   padding: 4px 10px;
   cursor: pointer;
   margin-top: 4px;
-  margin-right: 6px;
-}
-
-.avoid-btn {
-  color: var(--ink-quiet);
-  background: var(--paper);
-  border: 1px solid var(--rule);
 }
 
 .kept-item {

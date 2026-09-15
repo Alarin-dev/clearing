@@ -3,16 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Reflective Thinking</title>
-
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#f1f0ea">
-<link rel="icon" href="icon-192.png">
-<link rel="apple-touch-icon" href="icon-192.png">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Reflective">
-
+<title>clearing</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -21,7 +12,7 @@
 <body>
 
 <header class="topbar">
-  <h1>Reflective Thinking</h1>
+  <h1>Clearing</h1>
   <div class="topbar-actions">
     <button id="btn-settings" class="btn-quiet">Settings</button>
     <button id="btn-sessions" class="btn-quiet">Sessions</button>
@@ -79,7 +70,7 @@
     <div class="side-block">
       <h2>Controls</h2>
       <button id="btn-undo" class="btn-quiet">Undo last thought</button>
-      <button id="btn-reground" class="btn-quiet">Reground from raw streams</button>
+      <button id="btn-refresh-composition" class="btn-quiet">Regenerate composition</button>
     </div>
   </aside>
 
@@ -119,14 +110,5 @@
 <script src="storage.js"></script>
 <script src="ai.js"></script>
 <script src="app.js"></script>
-<script>
-  if ("serviceWorker" in navigator) {
-    window.addEventListener("load", () => {
-      navigator.serviceWorker.register("sw.js").catch((err) => {
-        console.warn("Service worker registration failed:", err);
-      });
-    });
-  }
-</script>
 </body>
 </html>

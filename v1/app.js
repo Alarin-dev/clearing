@@ -43,32 +43,17 @@ function addKeepButtons() {
     if (el.querySelector(".keep-btn")) return;
     const text = el.textContent.trim();
     if (text.length < 8) return;
-
-    const btnRow = document.createElement("div");
-
-    const keepBtn = document.createElement("button");
-    keepBtn.className = "keep-btn";
-    keepBtn.textContent = "Keep this";
-    keepBtn.onclick = async () => {
+    const btn = document.createElement("button");
+    btn.className = "keep-btn";
+    btn.textContent = "Keep this";
+    btn.onclick = async () => {
       await Storage.addKept(currentSessionId, text, "composition");
-      keepBtn.textContent = "Kept";
-      keepBtn.disabled = true;
+      btn.textContent = "Kept";
+      btn.disabled = true;
       await refreshKept();
     };
-
-    const avoidBtn = document.createElement("button");
-    avoidBtn.className = "keep-btn avoid-btn";
-    avoidBtn.textContent = "Don't like this";
-    avoidBtn.onclick = async () => {
-      await Storage.addAvoided(currentSessionId, text, "composition");
-      avoidBtn.textContent = "Noted";
-      avoidBtn.disabled = true;
-    };
-
-    btnRow.appendChild(keepBtn);
-    btnRow.appendChild(avoidBtn);
     el.appendChild(document.createElement("br"));
-    el.appendChild(btnRow);
+    el.appendChild(btn);
   });
 }
 
@@ -128,25 +113,12 @@ async function handleSubmit() {
     input.value = "";
     await refreshDocument();
 
-    setStatus("Integrating into composition...");
-    const newStreams = (await Storage.streamsSinceLastCompose(currentSessionId));
-    const record = await Storage.loadCompositionRecord(currentSessionId);
-    const previousText = record ? record.text : "";
-    const previousIds = record ? (record.composedStreamIds || []) : [];
-
+    setStatus("Updating composition...");
+    const allStreams = (await Storage.loadRawStreams(currentSessionId)).map((s) => s.raw_text);
     const kept = await Storage.loadKept(currentSessionId);
-    const avoided = await Storage.loadAvoided(currentSessionId);
-
-    const composed = await AI.composeIncremental(
-      previousText,
-      newStreams.map((s) => s.raw_text),
-      kept,
-      avoided
-    );
-
+    const composed = await AI.compose(allStreams, kept);
     if (composed) {
-      const allIds = [...previousIds, ...newStreams.map((s) => s.id)];
-      await Storage.saveComposition(currentSessionId, composed, allIds);
+      await Storage.saveComposition(currentSessionId, composed);
       await refreshComposition();
     }
 
@@ -237,16 +209,14 @@ async function init() {
     await refreshDocument();
   };
 
-  document.getElementById("btn-reground").onclick = async () => {
-    setStatus("Regrounding from raw streams -- this may take longer...");
+  document.getElementById("btn-refresh-composition").onclick = async () => {
+    setStatus("Regenerating composition...");
     const allStreams = (await Storage.loadRawStreams(currentSessionId)).map((s) => s.raw_text);
-    const record = await Storage.loadCompositionRecord(currentSessionId);
     const kept = await Storage.loadKept(currentSessionId);
     try {
-      const composed = await AI.regroundComposition(allStreams, record ? record.text : "", kept);
+      const composed = await AI.compose(allStreams, kept);
       if (composed) {
-        const allIds = (await Storage.loadRawStreams(currentSessionId)).map((s) => s.id);
-        await Storage.saveComposition(currentSessionId, composed, allIds);
+        await Storage.saveComposition(currentSessionId, composed);
         await refreshComposition();
       }
     } catch (err) {

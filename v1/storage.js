@@ -16,7 +16,7 @@
 */
 
 const DB_NAME = "reflective-thinking";
-const DB_VERSION = 2;
+const DB_VERSION = 1;
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -35,10 +35,6 @@ function openDB() {
       }
       if (!db.objectStoreNames.contains("kept")) {
         const store = db.createObjectStore("kept", { keyPath: "id" });
-        store.createIndex("sessionId", "sessionId");
-      }
-      if (!db.objectStoreNames.contains("avoided")) {
-        const store = db.createObjectStore("avoided", { keyPath: "id" });
         store.createIndex("sessionId", "sessionId");
       }
       if (!db.objectStoreNames.contains("composition")) {
@@ -157,18 +153,18 @@ const Storage = {
     return seen;
   },
 
-  async saveComposition(sessionId, text, composedStreamIds) {
+  async saveComposition(sessionId, text) {
     const db = await openDB();
     const t = tx(db, ["composition"], "readwrite");
     const store = t.objectStore("composition");
     const existing = await promisify(store.get(sessionId));
     if (existing) {
+      // keep exactly one backup, never more -- disposable layer, no need for full history
       existing.previous = existing.text;
       existing.text = text;
-      existing.composedStreamIds = composedStreamIds;
       store.put(existing);
     } else {
-      store.put({ sessionId, text, previous: null, composedStreamIds });
+      store.put({ sessionId, text, previous: null });
     }
   },
 
@@ -177,20 +173,6 @@ const Storage = {
     const t = tx(db, ["composition"]);
     const record = await promisify(t.objectStore("composition").get(sessionId));
     return record ? record.text : null;
-  },
-
-  async loadCompositionRecord(sessionId) {
-    const db = await openDB();
-    const t = tx(db, ["composition"]);
-    return await promisify(t.objectStore("composition").get(sessionId));
-  },
-
-  /** Streams saved since the composition last integrated -- what an incremental compose call should process. */
-  async streamsSinceLastCompose(sessionId) {
-    const allStreams = await this.loadRawStreams(sessionId);
-    const record = await this.loadCompositionRecord(sessionId);
-    const composedIds = record?.composedStreamIds || [];
-    return allStreams.filter((s) => !composedIds.includes(s.id));
   },
 
   async addKept(sessionId, text, source) {
@@ -219,34 +201,6 @@ const Storage = {
     const db = await openDB();
     const t = tx(db, ["kept"], "readwrite");
     t.objectStore("kept").delete(keptId);
-  },
-
-  async addAvoided(sessionId, text, source) {
-    const db = await openDB();
-    const record = {
-      id: newId(),
-      sessionId,
-      text,
-      source,
-      timestamp: new Date().toISOString(),
-    };
-    const t = tx(db, ["avoided"], "readwrite");
-    t.objectStore("avoided").put(record);
-    return record;
-  },
-
-  async loadAvoided(sessionId) {
-    const db = await openDB();
-    const t = tx(db, ["avoided"]);
-    const index = t.objectStore("avoided").index("sessionId");
-    const results = await promisify(index.getAll(sessionId));
-    return results.sort((a, b) => a.timestamp.localeCompare(b.timestamp));
-  },
-
-  async removeAvoided(avoidedId) {
-    const db = await openDB();
-    const t = tx(db, ["avoided"], "readwrite");
-    t.objectStore("avoided").delete(avoidedId);
   },
 
   async startNewSession() {

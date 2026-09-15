@@ -38,42 +38,70 @@ shape:
 `.trim();
 
 const COMPOSITION_SYSTEM_PROMPT = `
-You are producing a polished, book-quality composition from a person's
-raw stream-of-consciousness notes.
+You are maintaining a single, continuously evolving composition -- a
+polished, book-quality piece built from a person's raw
+stream-of-consciousness notes.
 
-This is a free layer. There are no restrictions on how much you
-rewrite, reorder, cut, or condense. Your job is NOT to lightly clean
-up the input -- it is to produce the clearest, most efficient, most
-useful possible piece of writing for a reader who wants to understand
-this person's thinking as fast as possible.
+You will be given the CURRENT COMPOSITION (the existing draft) and one
+or more NEW RAW THOUGHTS that have arrived since it was last updated.
 
-Priorities, in order:
-1. CLARITY -- understandable immediately, no wading through repetition.
-2. EFFICIENCY -- cut aggressively. Collapse repeated or restated ideas
-   into ONE clean statement.
-3. STRUCTURE -- organize around the ideas and their relationships, not
-   the chronological order they were written in. Use headings and
-   short paragraphs where they help a reader scan.
-4. POLISH -- real prose. Reword freely. Fix spelling and grammar.
+Your job is integration, not regeneration:
+- Do NOT start over or rewrite the whole piece from scratch.
+- Add the new thought's core insight into the block or section it most
+  belongs with. If it doesn't fit anywhere, add a new block for it.
+- Refine language only where needed for accuracy, consistency, or to
+  make the new material read as though it were written as part of the
+  same continuous piece -- not as a separate appended note.
+- Reorganize existing structure ONLY if the new thought reveals that
+  the current structure genuinely no longer fits (e.g. two sections
+  turn out to be the same idea). Do not reorganize for its own sake.
+- Prioritize coherence, accuracy, and continuity over chronological
+  order -- the new thought does not need to appear "at the end."
 
-Be meaningfully SHORTER than the raw input when it contains repetition
-or circling back. Discard filler and placeholder test text.
+You must NEVER remove or silently alter:
+- anything in KEPT PHRASING below -- this is material the person has
+  explicitly chosen to preserve. It may be woven into a different
+  sentence for flow, but its meaning and substance must survive intact
+  in the output.
+- the core insight of any earlier material, even while condensing or
+  rewording its expression.
 
-You must still:
-- preserve the person's actual ideas and intent -- never invent claims
-  they did not make
-- preserve genuine open questions as open questions
-- state real tensions or contradictions once, clearly, rather than
-  repeating or smoothing them over
+If AVOIDED PHRASING is given below, do not reintroduce that framing or
+wording -- the person has explicitly rejected it before.
 
-If the person has marked certain phrasings as ones they want to keep
-(provided below as KEPT PHRASING), stay consistent with that exact
-wording and framing rather than rewording it differently.
+Keep the same priorities as always: clarity and efficiency over
+completeness, one clean statement per idea rather than repetition,
+real prose (not a bulleted transcript), genuine open questions left
+open, real tensions stated once rather than smoothed over.
 
-Start with a short summary (2-4 sentences) of the core idea at the top.
-
-Return only the composed Markdown (summary + composition). No preamble.
+Return only the complete updated composition in Markdown, starting
+with a short 2-4 sentence summary at the top. No preamble, no meta
+commentary about what changed.
 `.trim();
+
+const REGROUND_SYSTEM_PROMPT = `
+You are re-deriving a composition fully from its original raw source
+material, to correct any drift that may have accumulated across many
+incremental edits.
+
+You will be given ALL RAW THOUGHTS from the session and the CURRENT
+COMPOSITION (for reference only -- treat the raw thoughts as ground
+truth, not the current draft).
+
+Produce the best possible fresh composition from the raw thoughts
+directly, following the same priorities as always: clarity and
+efficiency over completeness, one clean statement per repeated idea,
+real prose, genuine open questions left open, real tensions stated
+once. Use the current composition only as a reference for structure
+and tone that has worked well, not as authoritative content.
+
+KEPT PHRASING must survive intact in the output, reworded for flow if
+needed but never dropped or contradicted.
+
+Return only the composed Markdown, starting with a short summary. No
+preamble.
+`.trim();
+
 
 function getApiKey() {
   return localStorage.getItem("rt_api_key") || "";
@@ -172,30 +200,78 @@ in your instructions.
     return data;
   },
 
-  async compose(allRawStreams, keptPhrases) {
+  /**
+   * Incremental composition: integrates only the newThoughts that
+   * haven't been composed yet into the existing draft. Does NOT
+   * resend the full raw history -- this is the fix for both recency
+   * bias and cost-scaling-with-session-length.
+   */
+  async composeIncremental(currentComposition, newThoughts, keptPhrases, avoidedPhrases) {
+    if (newThoughts.length === 0) return currentComposition;
+
+    const newThoughtsText = newThoughts
+      .map((text, i) => `[New thought ${i + 1}]\n${text}`)
+      .join("\n\n");
+
+    const keptSection = (keptPhrases && keptPhrases.length > 0)
+      ? `\n\nKEPT PHRASING (must survive intact -- the person explicitly chose to keep these):\n${keptPhrases.map((k) => `- "${k.text}"`).join("\n")}`
+      : "";
+
+    const avoidedSection = (avoidedPhrases && avoidedPhrases.length > 0)
+      ? `\n\nAVOIDED PHRASING (do not reintroduce this framing or wording):\n${avoidedPhrases.map((a) => `- "${a.text}"`).join("\n")}`
+      : "";
+
+    const prompt = `
+CURRENT COMPOSITION:
+---
+${currentComposition || "(empty -- this is the first thought, so just compose an opening piece from it.)"}
+---
+
+NEW RAW THOUGHTS TO INTEGRATE:
+---
+${newThoughtsText}
+---
+${keptSection}${avoidedSection}
+
+Integrate the new thought(s) into the current composition following
+your instructions. Return the complete updated composition.
+`.trim();
+
+    return await callOpenRouter(COMPOSITION_SYSTEM_PROMPT, prompt, 2500);
+  },
+
+  /**
+   * Full regeneration from raw ground truth, to correct drift that
+   * may have accumulated across many incremental integrations.
+   * Use occasionally, not every stream.
+   */
+  async regroundComposition(allRawStreams, currentComposition, keptPhrases) {
     if (allRawStreams.length === 0) return null;
 
     const numbered = allRawStreams
       .map((text, i) => `[Thought ${i + 1}]\n${text}`)
       .join("\n\n");
 
-    let keptSection = "";
-    if (keptPhrases && keptPhrases.length > 0) {
-      keptSection = `\n\nKEPT PHRASING (stay consistent with this exact wording):\n${keptPhrases
-        .map((k) => `- "${k.text}"`)
-        .join("\n")}`;
-    }
+    const keptSection = (keptPhrases && keptPhrases.length > 0)
+      ? `\n\nKEPT PHRASING (must survive intact):\n${keptPhrases.map((k) => `- "${k.text}"`).join("\n")}`
+      : "";
 
     const prompt = `
-Here are all the raw thoughts streamed so far, in order:
-
+ALL RAW THOUGHTS (ground truth):
+---
 ${numbered}
+---
+
+CURRENT COMPOSITION (reference only, for structure/tone -- not authoritative content):
+---
+${currentComposition || "(none yet)"}
+---
 ${keptSection}
 
-Compose the best possible polished draft from this material, following
-your instructions.
+Re-derive the best possible composition directly from the raw
+thoughts, following your instructions.
 `.trim();
 
-    return await callOpenRouter(COMPOSITION_SYSTEM_PROMPT, prompt, 2000);
+    return await callOpenRouter(REGROUND_SYSTEM_PROMPT, prompt, 2500);
   },
 };
